@@ -32,7 +32,7 @@ from datetime import datetime
 from typing import Dict, List, Any, Optional, Union, Iterator
 import shutil
 import inspect
-
+import hashlib
 
 class ExperimentError(Exception):
     """Base exception for experiment-related errors"""
@@ -177,7 +177,11 @@ class Experiment:
             for key, value in zip(keys, values):
                 # Support nested keys via dot notation (e.g., "model.lr")
                 self._set_nested_param(params, key, value)
-            grid.append(params)
+
+            yaml_string = yaml.dump(params, sort_keys=True, default_flow_style=False)
+            params_hash = hashlib.md5(yaml_string.encode()).hexdigest()[:8]
+
+            grid.append((params_hash, params))
         
         return grid
     
@@ -200,13 +204,23 @@ class Experiment:
     def _save_parameter_variants(self) -> None:
         """Save baseline and all parameter variants as YAML files"""
         # Save baseline
-        baseline_path = self.params_dir / "params_baseline.yaml"
-        self._save_yaml(self.params_baseline, baseline_path)
-        self.metadata["config_files_used"].append(str(baseline_path.relative_to(self.base_dir)))
+        #baseline_path = self.params_dir / "params_baseline.yaml"
+        #self._save_yaml(self.params_baseline, baseline_path)
+        #self.metadata["config_files_used"].append(str(baseline_path.relative_to(self.base_dir)))
         
         # Save each variant
-        for i, params in enumerate(self._parameter_grid):
-            variant_path = self.params_dir / f"params_variant_{i:03d}.yaml"
+        for i, params_tuple in enumerate(self._parameter_grid):
+
+            params_hash, params = params_tuple
+
+            # When saving variant
+            #yaml_content = yaml.dump(params, sort_keys=True, default_flow_style=False)
+            #params_hash = hashlib.md5(yaml_content.encode()).hexdigest()[:8]
+
+            variant_path = self.params_dir / f"params_variant_{i:03d}_{params_hash}.yaml"
+            #with open(variant_path,'w') as f:
+            #    f.write(yaml_content)
+
             self._save_yaml(params, variant_path)
             self.metadata["config_files_used"].append(str(variant_path.relative_to(self.base_dir)))
     
