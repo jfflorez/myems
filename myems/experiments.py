@@ -255,13 +255,18 @@ class Experiment:
         self.metadata["script_name"] = script_name
         self.metadata["function_name"] = function_name
         
+    
+    
         # Setup infrastructure
         self._create_folder_structure()
-        self._parameter_grid = self._generate_parameter_grid()
-        self.metadata["num_runs"] = len(self._parameter_grid)
-        self._save_parameter_variants()
-        
-        self.metadata["status"] = "running"
+        if self.params_baseline or self.params_to_study:
+            self._parameter_grid = self._generate_parameter_grid()
+            self.metadata["num_runs"] = len(self._parameter_grid)
+            self._save_parameter_variants()        
+            self.metadata["status"] = "running"
+        else:
+            self._parameter_grid = []
+            self.metadata["mode"] = "analysis_only"
         
         return self
     
