@@ -74,9 +74,11 @@ class Experiment:
             tags: List of tags for categorizing experiments
         """
         self.name = self._validate_name(name)
-        self.base_dir = Path(base_dir)
+        self.base_dir = Path(base_dir).absolute()
+
+        # TODO:
+        # Consult metadata.json in base_dir to check experiment exists
         self.experiment_dir = self.base_dir / self.name
-        self.description = description
         self.tags = tags or []
         
         # Directories
@@ -456,6 +458,93 @@ class Experiment:
         ]
         return "\n".join(lines)
 
+def create_experiment_context(repository : str, name_prefix : str, description : str):
+    """
+    Creates a new experiment directory and updates metadata.
+    Returns the experiment ID.
+
+    """
+    repository_path = Path(repository)
+    repository_path.mkdir(parents=True,exist_ok=True)
+
+    metadata_file = repository_path.joinpath('metadata.json') #repository_path / "metadata.json"
+    experiments = []
+
+    # Load existing metadata if present
+    if metadata_file.is_file():
+        with open(metadata_file, 'r') as f:
+            experiments = json.load(f)
+
+    # Assign a new experiment ID
+    exp_id = len(experiments) + 1
+    name = f'{name_prefix}_{exp_id}'
+    experiment_dict = {'id': exp_id, 'name': name, 'description': description}
+
+    experiment_dir = repository_path / f"{name}"
+    experiment_dir.mkdir(parents=True, exist_ok=True)
+    experiment_dir.joinpath('params').mkdir(exist_ok=True)
+    experiment_dir.joinpath('outputs').mkdir(exist_ok=True)
+    experiment_dir.joinpath('figures').mkdir(exist_ok=True)
+
+    # Create main.py template
+    experiment_dir = experiment_dir.absolute()
+    create_main_template(experiment_dir, name, exp_id)
+
+    # Update metadata and save
+    experiments.append(experiment_dict)
+    with open(metadata_file, 'w') as f:
+        json.dump(experiments, f, indent=2)
+
+    return exp_id
+
+import textwrap
+        
+def create_main_template(experiment_dir: Path, name :str, exp_id: int):
+    """
+    Generates a main.py template with boilerplate for running inside
+    the infrastructure with a context manager.
+    """
+    main_py = experiment_dir / "main.py"
+    boilerplate = f'''
+    """
+    Main experiment template for experiment {exp_id}.
+    Use Experiment to sync with infrastructure.
+    """
+
+    from myems import Experiment # Replace with right relative import
+    REPO = "{experiment_dir.parent}"
+    params_baseline = {{}}
+    params_to_study = {{'param1' : [], 'param2' : []}}
+
+    def run():
+    
+        with Experiment(
+            name="{name}",
+            base_dir = REPO,
+            params_baseline=params_baseline,
+            params_to_study=params_to_study,
+            **exp_kwargs) as exp:
+            for params in exp.parameter_grid:
+                results = pipeline_func(dataset, params)
+                
+                # Save outputs
+                exp.save_output(results, name=f"run_{{exp.current_run:03d}}")
+                
+                # Store in memory too
+                all_results[exp.current_run] = {{
+                    "params": params,
+                    "results": results,
+                }}
+
+    if __name__ == "__main__":
+        run()
+    '''
+
+    # Remove leading whitespace
+    boilerplate = textwrap.dedent(boilerplate)
+
+    with open(main_py, 'w') as f:
+        f.write(boilerplate)
 
 # Convenience function for simple experiments
 def run_experiment(
@@ -509,3 +598,6 @@ def run_experiment(
             }
     
     return all_results
+
+if __name__ == "__main__":
+    create_experiment_context('example_repo','exp','just a text description')
