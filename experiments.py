@@ -23,7 +23,7 @@ Usage:
             results = my_pipeline(dataset, params)
             exp.save_output(results, name=f"run_{exp.current_run}")
 """
-
+import argparse
 import json
 import yaml
 import itertools
@@ -599,5 +599,39 @@ def run_experiment(
     
     return all_results
 
+def main():
+    parser = argparse.ArgumentParser(description="Create a new experiment context")
+
+    parser.add_argument(
+        "--repository",
+        type=str,
+        required=True,
+        help="Path to experiment repository"
+    )
+    parser.add_argument(
+        "--name-prefix",
+        type=str,
+        required=True,
+        help="Prefix for experiment name"
+    )
+    parser.add_argument(
+        "--description",
+        type=str,
+        default="",
+        help="Experiment description"
+    )
+
+    args = parser.parse_args()
+
+    create_experiment_context(
+        repository=args.repository,
+        name_prefix=args.name_prefix,
+        description=args.description
+    )
+
+
 if __name__ == "__main__":
-    create_experiment_context('example_repo','exp','just a text description')
+    main()
+
+#if __name__ == "__main__":
+#    create_experiment_context('example_repo','exp','just a text description')
