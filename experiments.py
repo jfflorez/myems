@@ -75,7 +75,7 @@ class Experiment:
         """
         self.name = self._validate_name(name)
         self.base_dir = Path(base_dir).absolute()
-
+        self.description = description
         # TODO:
         # Consult metadata.json in base_dir to check experiment exists
         self.experiment_dir = self.base_dir / self.name
